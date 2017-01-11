@@ -693,7 +693,7 @@ class SoftMocks
 
     private static function doRewrite($file)
     {
-        if ($file[0] != '/') {
+        if ($file[0] != '/' && $file[1]!=':') {
             $delimiter = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? ';' : ':');
             foreach (explode($delimiter, get_include_path()) as $dir) {
                 if ($dir == '.') {
@@ -702,7 +702,7 @@ class SoftMocks
                 }
 
                 if (file_exists($dir . '/' . $file)) {
-                    $file = "$dir/$file";
+                    $file = realpath("$dir/$file");
                     break;
                 }
             }
