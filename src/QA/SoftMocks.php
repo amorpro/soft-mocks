@@ -375,6 +375,8 @@ class SoftMocks
     private static $php_parser_path = "/php-parser/";
     private static $lock_file_path = '/tmp/mocks/soft_mocks_rewrite.lock';
 
+    private static $ignore_paths = [];
+
     public static function init()
     {
         if (!defined('SOFTMOCKS_ROOT_PATH')) {
@@ -585,6 +587,19 @@ class SoftMocks
         }
     }
 
+    public static function addIgnorePath($paths)
+    {
+        if (!is_array($paths)) {
+            $paths = [$paths];
+        }
+        foreach ($paths as $path) {
+            $path = realpath($path);
+            if (!in_array($path, self::$ignore_paths)) {
+                self::$ignore_paths[] = $path;
+            }
+        }
+    }
+
     /**
      * @param string $class - Do not allow to mock $class
      */
@@ -718,7 +733,11 @@ class SoftMocks
                 || strpos($file, self::$php_parser_path) !== false) {
                 return $file;
             }
-
+            foreach (self::$ignore_paths as $path) {
+                if (strpos($file, $path) === 0) {
+                    return $file;
+                }
+            }
             if (isset(self::$ignore[$file])) {
                 return $file;
             }
