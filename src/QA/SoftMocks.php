@@ -1131,31 +1131,67 @@ class SoftMocks
      *
      * @param string $class
      * @param string $method         Method of class to be intercepted
-     * @param string $functionArgs   List of argument names
      * @param string $fakeCode       Code that will be eval'ed instead of function code
      * @param bool $strict           If strict=false then method of declaring class will also be mocked
      */
-    public static function redefineMethod($class, $method, $functionArgs, $fakeCode, $strict = true)
+    public static function redefineMethod($class, $method, $fakeCode, $strict = true)
     {
-        if (self::$debug) self::debug("Asked to redefine $class::$method($functionArgs)");
+        if (self::$debug) self::debug("Asked to redefine $class::$method()");
         if (SoftMocksTraverser::isClassIgnored($class)) {
             throw new \RuntimeException("Class $class cannot be mocked using Soft Mocks");
         }
 
-        self::$mocks[$class][$method] = ['args' => $functionArgs, 'code' => $fakeCode];
+        self::$mocks[$class][$method] = ['code' => $fakeCode];
 
         try {
             $Rm = new \ReflectionMethod($class, $method);
-            $preCode = self::generateCode($functionArgs, $Rm);
-            if (is_string(self::$mocks[$class][$method]['code'])) {
-                self::$mocks[$class][$method]['code'] = $preCode . self::$mocks[$class][$method]['code'];
-            } else {
-                $oldCode = self::$mocks[$class][$method]['code'];
-                self::$mocks[$class][$method]['code'] = function($mm_func_args, $params) use($preCode, $oldCode) {
-                    eval($preCode);
-                    return call_user_func_array($oldCode,$mm_func_args);
-                };
-            }
+            $columnsInfo = $Rm->getParameters();
+            self::$mocks[$class][$method]['code'] = function($mm_func_args) use($columnsInfo, $fakeCode, $class, $method) {
+                $args = [];
+                foreach ($mm_func_args as $index => &$arg) {
+                    if (isset($columnsInfo[$index])) {
+                        /** @var \ReflectionParameter $argSettings */
+                        $argSettings = $columnsInfo[$index];
+                        unset($columnsInfo[$index]);
+                        if ($argSettings->getClass()->name) {
+                            if (is_object($arg)) {
+                                $argClass = $argSettings->getClass()->name;
+                                if (!($arg instanceof $argClass)) {
+                                    throw new InvalidArgumentException(
+                                        $class.'::'.$method.'('.$argSettings->name.') '.
+                                        'allow only '.$argSettings->getClass()->name.' argument, but '.get_class($arg).' given'
+                                    );
+                                }
+                            } else if (!$argSettings->allowsNull() && !is_null($arg)) {
+                                throw new InvalidArgumentException(
+                                    $class.'::'.$method.'('.$argSettings->name.') '.
+                                    'allow only '.$argSettings->getClass()->name.' argument, but not object given'
+                                );
+                            }
+                        }
+                        if ($argSettings->isPassedByReference()) {
+                            $args[$argSettings->name] = &$arg;
+                        } else {
+                            $args[$argSettings->name] = $arg;
+                        }
+                    } else {
+                        $args[] = $arg;
+                    }
+                }
+                foreach ($columnsInfo as $index => $argSettings) {
+                    if (!$argSettings->isDefaultValueAvailable()) {
+                        throw new InvalidArgumentException(
+                            $class.'::'.$method.'('.$argSettings->name.') missed argument '.$index
+                        );
+                    }
+                    $args[$argSettings->name] = $argSettings->getDefaultValue();
+                }
+                if (is_string($fakeCode)) {
+                    extract($args);
+                    return eval($fakeCode);
+                }
+                return call_user_func_array($fakeCode, $args);
+            };
             if ($strict) return;
 
             $Dc = $Rm->getDeclaringClass();
@@ -1180,7 +1216,13 @@ class SoftMocks
                 }
             }
         } catch (\Exception $e) {
-            self::$mocks[$class][$method]['code'] = self::generateCode($functionArgs, null) . self::$mocks[$class][$method]['code'];
+            self::$mocks[$class][$method]['code'] = function($mm_func_args) use($fakeCode) {
+                if (is_string($mm_func_args)) {
+                    extract($args);
+                    return eval($fakeCode);
+                }
+                return call_user_func_array($fakeCode, $mm_func_args);
+            };
 
             if (self::$debug) self::debug("Could not new ReflectionMethod($class, $method), cannot accept function calls by reference: " . $e);
         }
@@ -1388,97 +1430,6 @@ class SoftMocks
             throw new \RuntimeException("No mock code for class $static::$method");
         }
         return $mock['code'];
-    }
-
-    /**
-     * Generate code that parses function parameters that are specified as string $args
-     *
-     * @warning For internal use only, except \QA\OriginalChainCaller
-     * @param $args
-     * @param \ReflectionMethod|null $Rm
-     * @return string
-     */
-    public static function generateCode($args, $Rm)
-    {
-        $args = trim($args);
-        if (!$args) return '';
-
-        $codeArgs = '';
-
-        $list = token_get_all("<?php " . $args);
-        $params_toks = [];
-        $i = 0;
-        foreach ($list as $tok) {
-            if ($tok === ',') {
-                $i++;
-                continue;
-            }
-            $params_toks[$i][] = $tok;
-        }
-
-        if ($Rm) {
-            $params = $Rm->getParameters();
-        } else {
-            $params = [];
-        }
-
-        foreach ($params_toks as $i => $toks) {
-            $isRef = false;
-            $varName = false;
-            $haveDefault = false;
-            $default = "";
-            $mode = 'var';
-
-            foreach ($toks as $tok) {
-                if ($tok === '&') {
-                    $isRef = true;
-                    continue;
-                }
-
-                if ($tok === '=') {
-                    $haveDefault = true;
-                    $mode = 'default';
-                    continue;
-                }
-
-                if ($mode == 'default') {
-                    $default .= is_array($tok) ? $tok[1] : $tok;
-                    continue;
-                }
-
-                if ($tok[0] === T_VARIABLE) {
-                    $varName = $tok[1];
-                }
-            }
-
-            if ($haveDefault) {
-                $codeArgs .= "if (count(\$mm_func_args) > $i) {\n";
-            }
-
-            if ($isRef && isset($params[$i])) {
-                $param_name = $params[$i]->getName();
-                if (ltrim($varName, '$') !== $param_name) {
-                    $codeArgs .= "$varName = &\$$param_name;\n";
-                }
-            } else {
-                $codeArgs .= "$varName = \$params[$i];\n";
-            }
-
-            if ($haveDefault) {
-                $codeArgs .= "} else {\n";
-                $codeArgs .= "$varName = $default;\n";
-                $codeArgs .= "}\n";
-            }
-        }
-
-        if (self::$debug) {
-            echo "Compiled code for " . $Rm->getDeclaringClass()->getName() . "::" . $Rm->getName() . " ($args)\n===========\n";
-            echo $codeArgs;
-            echo "===========\n";
-            ob_flush();
-        }
-
-        return $codeArgs;
     }
 
     protected static function debug($message)
