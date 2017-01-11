@@ -729,7 +729,7 @@ class SoftMocks
             }
 
             $clean_filepath = $file;
-            if (strpos($clean_filepath, SOFTMOCKS_ROOT_PATH) === 0) {
+            if (SOFTMOCKS_ROOT_PATH && strpos($clean_filepath, SOFTMOCKS_ROOT_PATH) === 0) {
                 $clean_filepath = substr($clean_filepath, strlen(SOFTMOCKS_ROOT_PATH));
             }
 
@@ -1555,7 +1555,7 @@ class SoftMocksTraverser extends \PhpParser\NodeVisitorAbstract
     public function __construct($filename)
     {
         $this->filename = realpath($filename);
-        if (strpos($this->filename, SOFTMOCKS_ROOT_PATH) === 0) {
+        if (SOFTMOCKS_ROOT_PATH && strpos($this->filename, SOFTMOCKS_ROOT_PATH) === 0) {
             $this->filename = substr($this->filename, strlen(SOFTMOCKS_ROOT_PATH));
         }
     }
