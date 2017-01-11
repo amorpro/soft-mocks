@@ -1153,22 +1153,6 @@ class SoftMocks
                         /** @var \ReflectionParameter $argSettings */
                         $argSettings = $columnsInfo[$index];
                         unset($columnsInfo[$index]);
-                        if ($argSettings->getClass()->name) {
-                            if (is_object($arg)) {
-                                $argClass = $argSettings->getClass()->name;
-                                if (!($arg instanceof $argClass)) {
-                                    throw new InvalidArgumentException(
-                                        $class.'::'.$method.'('.$argSettings->name.') '.
-                                        'allow only '.$argSettings->getClass()->name.' argument, but '.get_class($arg).' given'
-                                    );
-                                }
-                            } else if (!$argSettings->allowsNull() && !is_null($arg)) {
-                                throw new InvalidArgumentException(
-                                    $class.'::'.$method.'('.$argSettings->name.') '.
-                                    'allow only '.$argSettings->getClass()->name.' argument, but not object given'
-                                );
-                            }
-                        }
                         if ($argSettings->isPassedByReference()) {
                             $args[$argSettings->name] = &$arg;
                         } else {
@@ -1179,11 +1163,6 @@ class SoftMocks
                     }
                 }
                 foreach ($columnsInfo as $index => $argSettings) {
-                    if (!$argSettings->isDefaultValueAvailable()) {
-                        throw new InvalidArgumentException(
-                            $class.'::'.$method.'('.$argSettings->name.') missed argument '.$index
-                        );
-                    }
                     $args[$argSettings->name] = $argSettings->getDefaultValue();
                 }
                 if (is_string($fakeCode)) {
