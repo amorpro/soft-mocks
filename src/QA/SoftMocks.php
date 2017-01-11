@@ -378,7 +378,11 @@ class SoftMocks
     public static function init()
     {
         if (!defined('SOFTMOCKS_ROOT_PATH')) {
-            define('SOFTMOCKS_ROOT_PATH', '/');
+            if (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN') {
+                define('SOFTMOCKS_ROOT_PATH', '');
+            } else {
+                define('SOFTMOCKS_ROOT_PATH', '/');
+            }
         }
 
         if (!empty($_ENV['SOFT_MOCKS_DEBUG'])) {
@@ -690,7 +694,8 @@ class SoftMocks
     private static function doRewrite($file)
     {
         if ($file[0] != '/') {
-            foreach (explode(':', get_include_path()) as $dir) {
+            $delimiter = (strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' ? ';' : ':');
+            foreach (explode($delimiter, get_include_path()) as $dir) {
                 if ($dir == '.') {
                     $bt = debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS, 2);
                     $dir = dirname(self::replaceFilename($bt[1]['file'], true));
