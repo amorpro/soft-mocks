@@ -9,7 +9,6 @@
     }
   ],
   "require": {
-    "php": ">=5.5",
-    "nikic/php-parser": "2.*"
+    "php": ">=5.5"
   }
 }
