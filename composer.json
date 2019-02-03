@@ -1,14 +1,30 @@
 {
-  "name": "amorpro/soft-mocks",
-  "type": "library",
-  "minimum-stability": "stable",
-  "license": "MIT",
-  "authors": [
-    {
-      "name": "Badoo Development"
+    "name": "amorpro/soft-mocks",
+    "type": "library",
+    "description": "Useful tool to mock the real source code",
+    "minimum-stability": "stable",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Badoo Development"
+        },
+        {
+            "name": "Renat Yusupov",
+            "email": "zymanch@gmail.com",
+            "role": "Developer"
+        },
+        {
+            "name": "Renat Yusupov",
+            "email": "amorpro3@gmail.com",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=5.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "Qa\\": "src/Qa"
+        }
     }
-  ],
-  "require": {
-    "php": ">=5.5"
-  }
 }

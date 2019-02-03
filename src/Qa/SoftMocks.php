@@ -4,7 +4,7 @@
  * @author Yuriy Nasretdinov <y.nasretdinov@corp.badoo.com>
  */
 
-namespace QA;
+namespace Qa;
 
 use \PhpParser\Node\Stmt;
 use \PhpParser\Node\Expr;
