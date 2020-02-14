@@ -24,7 +24,8 @@
     },
     "autoload": {
         "psr-4": {
-            "Qa\\": "src/Qa"
+            "Qa\\": "src/Qa",
+            "PhpParser\\": "vendor/PHP-Parser/lib/PhpParser"
         }
     }
 }
