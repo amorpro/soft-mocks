@@ -1,5 +1,7 @@
 <?php
 namespace Qa;
+use ReflectionException;
+
 /**
  * Created by PhpStorm.
  * User: ZyManch
@@ -194,4 +196,34 @@ trait UnitTest  {
         }
 
     }
+
+
+    /**
+     * Call the private/protected methods of the object
+     *
+     * @example
+     *
+     * class User {
+     *      private function _encryptPassword($salt){
+     *          // ... do encrypt
+     *      }
+     * }
+     *
+     * $this->invokeMethod(new User(), '_encryptPassword', [ 'some_salt' ]);
+     *
+     * @param $object
+     * @param $methodName
+     * @param array $parameters
+     * @return mixed
+     * @throws ReflectionException
+     */
+    public function invokeMethod(&$object, $methodName, array $parameters = array())
+    {
+        $reflection = new \ReflectionClass(get_class($object));
+        $method = $reflection->getMethod($methodName);
+        $method->setAccessible(true);
+
+        return $method->invokeArgs($object, $parameters);
+    }
+
 }
